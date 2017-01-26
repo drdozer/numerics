@@ -93,6 +93,29 @@ class TypedDecimal[P <: XInt](val digits: Long) extends AnyVal {
   }
 }
 
+object TypedDecimal {
+  def apply[A, B](implicit b: TDBuilder[A, B]): TypedDecimal[b.L] = b.apply
+
+  trait TDBuilder[A, B] {
+    type L <: XInt
+    def apply: TypedDecimal[L]
+  }
+
+  type Aux[A, B, L0 <: XInt] = TDBuilder[A, B] { type L = L0 }
+
+  implicit def buildFromString[Lead <: XString, Trail <: XString, L0 <: XInt]
+  (implicit len: OpAuxInt[Length[Trail], L0], dl: DecimalPoint.Aux[L0], lead: ValueOf[Lead], trail: ValueOf[Trail]): Aux[Lead, Trail, L0] = new TDBuilder[Lead, Trail] {
+    type L = L0
+
+    def apply = {
+      val leadD = lead.value.toLong
+      val trailD = trail.value.toLong
+
+      new TypedDecimal[L](leadD * dl.pow10 + trailD)
+    }
+  }
+}
+
 sealed trait Rounding[P <: XInt, Q <: XInt] {
   def apply(p: TypedDecimal[P]): TypedDecimal[Q]
 }
